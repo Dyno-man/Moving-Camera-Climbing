@@ -1,10 +1,10 @@
 import cv2
 import numpy as np
 import RPi.GPIO as GPIO
-import time
+from time import sleep
 
 # GPIO setup
-GPIO.setmode(GPIO.BCM)
+GPIO.setmode(GPIO.BOARD)
 GPIO.setwarnings(False)
 
 # Define GPIO pins for motor control
@@ -15,6 +15,7 @@ motor_y_pin1 = 11
 motor_y_pin2 = 13
 motor_y_enable = 15
 
+# Set up GPIO pins
 GPIO.setup(motor_x_pin1, GPIO.OUT)
 GPIO.setup(motor_x_pin2, GPIO.OUT)
 GPIO.setup(motor_x_enable, GPIO.OUT)
@@ -22,44 +23,56 @@ GPIO.setup(motor_y_pin1, GPIO.OUT)
 GPIO.setup(motor_y_pin2, GPIO.OUT)
 GPIO.setup(motor_y_enable, GPIO.OUT)
 
+# Set up PWM
+pwm_x = GPIO.PWM(motor_x_enable, 100)
+pwm_y = GPIO.PWM(motor_y_enable, 100)
+
+pwm_x.start(0)
+pwm_y.start(0)
+
 # Function to stop all motors
 def stop_motors():
     GPIO.output(motor_x_pin1, GPIO.LOW)
     GPIO.output(motor_x_pin2, GPIO.LOW)
-    GPIO.output(motor_x_enable, GPIO.LOW)
+    pwm_x.ChangeDutyCycle(0)
     GPIO.output(motor_y_pin1, GPIO.LOW)
     GPIO.output(motor_y_pin2, GPIO.LOW)
-    GPIO.output(motor_y_enable, GPIO.LOW)
+    pwm_y.ChangeDutyCycle(0)
 
 # Function to move the camera based on the difference between the center and the person's location
 def move_camera(diff_x, diff_y):
     threshold = 15  # Threshold to determine when to stop the motors
+    duty_cycle = 50  # Example duty cycle
 
-    # Enable motors
-    GPIO.output(motor_x_enable, GPIO.HIGH)
-    GPIO.output(motor_y_enable, GPIO.HIGH)
-    
-    # Horizontal movement
+    # Move in X direction
     if diff_x > threshold:
         GPIO.output(motor_x_pin1, GPIO.LOW)
         GPIO.output(motor_x_pin2, GPIO.HIGH)
+        pwm_x.ChangeDutyCycle(duty_cycle)
+        GPIO.output(motor_x_enable, GPIO.HIGH)
     elif diff_x < -threshold:
         GPIO.output(motor_x_pin1, GPIO.HIGH)
         GPIO.output(motor_x_pin2, GPIO.LOW)
+        pwm_x.ChangeDutyCycle(duty_cycle)
+        GPIO.output(motor_x_enable, GPIO.HIGH)
     else:
-        GPIO.output(motor_x_pin1, GPIO.LOW)
-        GPIO.output(motor_x_pin2, GPIO.LOW)
-    
-    # Vertical movement
+        GPIO.output(motor_x_enable, GPIO.LOW)
+        pwm_x.ChangeDutyCycle(0)
+
+    # Move in Y direction
     if diff_y > threshold:
         GPIO.output(motor_y_pin1, GPIO.LOW)
         GPIO.output(motor_y_pin2, GPIO.HIGH)
+        pwm_y.ChangeDutyCycle(duty_cycle)
+        GPIO.output(motor_y_enable, GPIO.HIGH)
     elif diff_y < -threshold:
         GPIO.output(motor_y_pin1, GPIO.HIGH)
         GPIO.output(motor_y_pin2, GPIO.LOW)
+        pwm_y.ChangeDutyCycle(duty_cycle)
+        GPIO.output(motor_y_enable, GPIO.HIGH)
     else:
-        GPIO.output(motor_y_pin1, GPIO.LOW)
-        GPIO.output(motor_y_pin2, GPIO.LOW)
+        GPIO.output(motor_y_enable, GPIO.LOW)
+        pwm_y.ChangeDutyCycle(0)
 
 # Load YOLO
 net = cv2.dnn.readNet("yolov3.weights", "yolov3.cfg")
@@ -144,7 +157,7 @@ while True:
             move_camera(diff_x, diff_y)
 
     # Sleep for a short duration to reduce CPU usage
-    time.sleep(0.1)
+    sleep(0.1)
 
 # When everything is done, release the capture and stop the motors
 cap.release()

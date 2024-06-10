@@ -99,7 +99,7 @@ while True:
     client_socket.sendall(message_size + data)
 
     # Receive motor commands
-    command_size = struct.unpack("L", client_socket.recv(4))[0]
+    command_size = struct.unpack("L", client_socket.recv(struct.calcsize("L")))[0]
     command_data = client_socket.recv(command_size)
     diff_x, diff_y = pickle.loads(command_data)
 

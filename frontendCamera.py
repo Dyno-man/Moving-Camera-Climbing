@@ -91,6 +91,7 @@ cap = cv2.VideoCapture(0)
 while True:
     ret, frame = cap.read()
     if not ret:
+        print("Failed to grab frame")
         break
 
     # Resize the frame to reduce quality
@@ -111,6 +112,7 @@ while True:
     while len(data) < struct.calcsize("Q"):
         packet = client_socket.recv(4096)
         if not packet:
+            print("No packet received")
             break
         data += packet
 
@@ -124,6 +126,7 @@ while True:
     while len(data) < command_size:
         packet = client_socket.recv(4096)
         if not packet:
+            print("No packet received during command reception")
             break
         data += packet
 

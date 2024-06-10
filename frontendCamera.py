@@ -78,7 +78,7 @@ def move_camera(diff_x, diff_y):
         pwm_y.ChangeDutyCycle(0)
 
 # Set up socket for communication
-HOST = 'your_computer_ip'  # IP address of the powerful computer
+HOST = '10.120.60.30'  # IP address of the powerful computer
 PORT = 5000  # Port to connect to the computer
 
 client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -93,14 +93,33 @@ while True:
 
     # Serialize frame
     data = pickle.dumps(frame)
-    message_size = struct.pack("L", len(data))
+    message_size = struct.pack("Q", len(data))
 
     # Send frame
     client_socket.sendall(message_size + data)
 
     # Receive motor commands
-    command_size = struct.unpack("L", client_socket.recv(struct.calcsize("L")))[0]
-    command_data = client_socket.recv(command_size)
+    data = b""
+    while len(data) < struct.calcsize("Q"):
+        packet = client_socket.recv(4096)
+        if not packet:
+            break
+        data += packet
+
+    if len(data) < struct.calcsize("Q"):
+        print("Connection closed by server")
+        break
+
+    command_size = struct.unpack("Q", data[:struct.calcsize("Q")])[0]
+    data = data[struct.calcsize("Q"):]
+
+    while len(data) < command_size:
+        packet = client_socket.recv(4096)
+        if not packet:
+            break
+        data += packet
+
+    command_data = data[:command_size]
     diff_x, diff_y = pickle.loads(command_data)
 
     # Move the camera based on received commands

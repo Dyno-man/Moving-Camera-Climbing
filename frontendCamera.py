@@ -43,9 +43,9 @@ def stop_motors():
 
 # Function to move the camera based on received commands
 def move_camera(diff_x, diff_y):
-    threshold = 175  # Threshold to determine when to stop the motors
-    duty_cycle = 25  # Example duty cycle
-    angle_step = 2  # Small degree change per step
+    threshold = 15  # Threshold to determine when to stop the motors
+    duty_cycle = 50  # Example duty cycle
+    move_duration = 0.1  # Duration to move motors in seconds
 
     # Move in X direction
     if diff_x > threshold:
@@ -53,14 +53,15 @@ def move_camera(diff_x, diff_y):
         GPIO.output(motor_x_pin2, GPIO.HIGH)
         pwm_x.ChangeDutyCycle(duty_cycle)
         GPIO.output(motor_x_enable, GPIO.HIGH)
-    elif diff_x < threshold:
+        sleep(move_duration)
+        GPIO.output(motor_x_enable, GPIO.LOW)
+    elif diff_x < -threshold:
         GPIO.output(motor_x_pin1, GPIO.HIGH)
         GPIO.output(motor_x_pin2, GPIO.LOW)
         pwm_x.ChangeDutyCycle(duty_cycle)
         GPIO.output(motor_x_enable, GPIO.HIGH)
-    else:
+        sleep(move_duration)
         GPIO.output(motor_x_enable, GPIO.LOW)
-        pwm_x.ChangeDutyCycle(0)
 
     # Move in Y direction
     if diff_y > threshold:
@@ -68,14 +69,15 @@ def move_camera(diff_x, diff_y):
         GPIO.output(motor_y_pin2, GPIO.HIGH)
         pwm_y.ChangeDutyCycle(duty_cycle)
         GPIO.output(motor_y_enable, GPIO.HIGH)
-    elif diff_y < threshold:
+        sleep(move_duration)
+        GPIO.output(motor_y_enable, GPIO.LOW)
+    elif diff_y < -threshold:
         GPIO.output(motor_y_pin1, GPIO.HIGH)
         GPIO.output(motor_y_pin2, GPIO.LOW)
         pwm_y.ChangeDutyCycle(duty_cycle)
         GPIO.output(motor_y_enable, GPIO.HIGH)
-    else:
+        sleep(move_duration)
         GPIO.output(motor_y_enable, GPIO.LOW)
-        pwm_y.ChangeDutyCycle(0)
 
 # Set up socket for communication
 HOST = '10.120.60.30'  # IP address of the powerful computer

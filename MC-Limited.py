@@ -48,7 +48,7 @@ def move_camera(diff_x, diff_y):
     global current_angle_x, current_angle_y
     threshold = 15  # Threshold to determine when to stop the motors
     duty_cycle = 50  # Example duty cycle
-    angle_step = 1  # Degree change per step
+    angle_step = 2  # Small degree change per step
 
     # Calculate new positions
     new_angle_x = current_angle_x
@@ -72,10 +72,12 @@ def move_camera(diff_x, diff_y):
             GPIO.output(motor_x_pin1, GPIO.LOW)
             GPIO.output(motor_x_pin2, GPIO.HIGH)
             pwm_x.ChangeDutyCycle(duty_cycle)
+            GPIO.output(motor_x_enable, GPIO.HIGH)
         elif diff_x < -threshold:
             GPIO.output(motor_x_pin1, GPIO.HIGH)
             GPIO.output(motor_x_pin2, GPIO.LOW)
             pwm_x.ChangeDutyCycle(duty_cycle)
+            GPIO.output(motor_x_enable, GPIO.HIGH)
         else:
             GPIO.output(motor_x_enable, GPIO.LOW)
             pwm_x.ChangeDutyCycle(0)
@@ -86,22 +88,21 @@ def move_camera(diff_x, diff_y):
             GPIO.output(motor_y_pin1, GPIO.LOW)
             GPIO.output(motor_y_pin2, GPIO.HIGH)
             pwm_y.ChangeDutyCycle(duty_cycle)
+            GPIO.output(motor_y_enable, GPIO.HIGH)
         elif diff_y < -threshold:
             GPIO.output(motor_y_pin1, GPIO.HIGH)
             GPIO.output(motor_y_pin2, GPIO.LOW)
             pwm_y.ChangeDutyCycle(duty_cycle)
+            GPIO.output(motor_y_enable, GPIO.HIGH)
         else:
             GPIO.output(motor_y_enable, GPIO.LOW)
             pwm_y.ChangeDutyCycle(0)
         current_angle_y = new_angle_y
 
-# Load YOLO
-net = cv2.dnn.readNet("yolov3.weights", "yolov3.cfg")
+# Load Tiny YOLO (or any other lightweight model)
+net = cv2.dnn.readNet("yolov3-tiny.weights", "yolov3-tiny.cfg")
 layer_names = net.getLayerNames()
-try:
-    output_layers = [layer_names[i[0] - 1] for i in net.getUnconnectedOutLayers()]
-except IndexError:
-    output_layers = [layer_names[i - 1] for i in net.getUnconnectedOutLayers()]
+output_layers = [layer_names[i - 1] for i in net.getUnconnectedOutLayers()]
 classes = []
 with open("coco.names", "r") as f:
     classes = [line.strip() for line in f.readlines()]
@@ -117,6 +118,8 @@ if not cap.isOpened():
     print("Error: Cannot open camera")
     exit()
 
+frame_count = 0
+
 while True:
     # Capture frame-by-frame
     ret, frame = cap.read()
@@ -124,10 +127,16 @@ while True:
         print("Error: Can't receive frame (stream end?). Exiting ...")
         break
 
+    frame_count += 1
+
+    # Only process every 5th frame to reduce load
+    if frame_count % 5 != 0:
+        continue
+
     height, width, channels = frame.shape
 
     # Detecting objects
-    blob = cv2.dnn.blobFromImage(frame, 0.00392, (416, 416), (0, 0, 0), True, crop=False)
+    blob = cv2.dnn.blobFromImage(frame, 0.00392, (320, 320), (0, 0, 0), True, crop=False)
     net.setInput(blob)
     outs = net.forward(output_layers)
 
@@ -159,23 +168,23 @@ while True:
 
     indexes = cv2.dnn.NMSBoxes(boxes, confidences, 0.5, 0.4)
 
-    for i in range(len(boxes)):
-        if i in indexes:
-            person_center_x, person_center_y = centers[i]
+    if len(indexes) > 0:
+        i = indexes[0]
+        person_center_x, person_center_y = centers[i]
 
-            # Calculate the difference between the frame center and the person's center
-            frame_center_x = width // 2
-            frame_center_y = height // 2
-            diff_x = frame_center_x - person_center_x
-            diff_y = frame_center_y - person_center_y
+        # Calculate the difference between the frame center and the person's center
+        frame_center_x = width // 2
+        frame_center_y = height // 2
+        diff_x = frame_center_x - person_center_x
+        diff_y = frame_center_y - person_center_y
 
-            # Print the results to the console
-            print(f"Frame center: ({frame_center_x}, {frame_center_y})")
-            print(f"Person center: ({person_center_x}, {person_center_y})")
-            print(f"Difference: (x: {diff_x}, y: {diff_y})")
+        # Print the results to the console
+        print(f"Frame center: ({frame_center_x}, {frame_center_y})")
+        print(f"Person center: ({person_center_x}, {person_center_y})")
+        print(f"Difference: (x: {diff_x}, y: {diff_y})")
 
-            # Move the camera based on the difference
-            move_camera(diff_x, diff_y)
+        # Move the camera based on the difference
+        move_camera(diff_x, diff_y)
 
     # Sleep for a short duration to reduce CPU usage
     sleep(0.1)

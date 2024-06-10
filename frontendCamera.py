@@ -43,8 +43,8 @@ def stop_motors():
 
 # Function to move the camera based on received commands
 def move_camera(diff_x, diff_y):
-    threshold = 15  # Threshold to determine when to stop the motors
-    duty_cycle = 50  # Example duty cycle
+    threshold = 150  # Threshold to determine when to stop the motors
+    duty_cycle = 25  # Example duty cycle
     move_duration = 0.1  # Duration to move motors in seconds
 
     # Move in X direction
@@ -93,8 +93,14 @@ while True:
     if not ret:
         break
 
+    # Resize the frame to reduce quality
+    frame = cv2.resize(frame, (320, 240))
+
+    # Convert the frame to grayscale
+    gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
     # Serialize frame
-    data = pickle.dumps(frame)
+    data = pickle.dumps(gray_frame)
     message_size = struct.pack("Q", len(data))
 
     # Send frame

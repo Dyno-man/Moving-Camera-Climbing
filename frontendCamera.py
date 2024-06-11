@@ -45,8 +45,8 @@ def stop_motors():
 
 # Function to move the camera based on received commands
 def move_camera(diff_x, diff_y):
-    threshold = 15  # Threshold to determine when to stop the motors
-    duty_cycle = 50  # Example duty cycle
+    threshold = 150  # Threshold to determine when to stop the motors
+    duty_cycle = 25  # Example duty cycle
     move_duration = 0.1  # Duration to move motors in seconds
 
     # Move in X direction
@@ -95,54 +95,63 @@ client_socket.connect((HOST, PORT))
 cap = cv2.VideoCapture(0)
 
 while True:
-    ret, frame = cap.read()
-    if not ret:
-        print("Failed to grab frame")
-        break
-
-    # Resize the frame to reduce quality
-    frame = cv2.resize(frame, (320, 240))
-
-    # Convert the frame to grayscale
-    gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-
-    # Serialize frame
-    data = pickle.dumps(gray_frame)
-    message_size = struct.pack("Q", len(data))
-
-    # Send frame
-    client_socket.sendall(message_size + data)
-
-    # Receive motor commands
-    data = b""
-    while len(data) < struct.calcsize("Q"):
-        packet = client_socket.recv(4096)
-        if not packet:
-            print("No packet received")
+    try:
+        ret, frame = cap.read()
+        if not ret:
+            print("Failed to grab frame")
             break
-        data += packet
 
-    if len(data) < struct.calcsize("Q"):
-        print("Connection closed by server")
-        break
+        # Resize the frame to reduce quality
+        frame = cv2.resize(frame, (320, 240))
 
-    command_size = struct.unpack("Q", data[:struct.calcsize("Q")])[0]
-    data = data[struct.calcsize("Q"):]
+        # Convert the frame to grayscale
+        gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-    while len(data) < command_size:
-        packet = client_socket.recv(4096)
-        if not packet:
-            print("No packet received during command reception")
+        # Compress the frame using JPEG
+        encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 90]  # 90 is the quality of the JPEG compression
+        result, frame = cv2.imencode('.jpg', gray_frame, encode_param)
+        data = pickle.dumps(frame, 0)
+
+        # Serialize frame
+        message_size = struct.pack("Q", len(data))
+
+        # Send frame
+        client_socket.sendall(message_size + data)
+        print(f"Sent frame of size: {len(data)}")
+
+        # Receive motor commands
+        data = b""
+        while len(data) < struct.calcsize("Q"):
+            packet = client_socket.recv(4096)
+            if not packet:
+                print("No packet received")
+                break
+            data += packet
+
+        if len(data) < struct.calcsize("Q"):
+            print("Connection closed by server")
             break
-        data += packet
 
-    command_data = data[:command_size]
-    diff_x, diff_y = pickle.loads(command_data)
+        command_size = struct.unpack("Q", data[:struct.calcsize("Q")])[0]
+        data = data[struct.calcsize("Q"):]
 
-    # Move the camera based on received commands
-    move_camera(diff_x, diff_y)
+        while len(data) < command_size:
+            packet = client_socket.recv(4096)
+            if not packet:
+                print("No packet received during command reception")
+                break
+            data += packet
 
-    sleep(0.1)
+        command_data = data[:command_size]
+        diff_x, diff_y = pickle.loads(command_data)
+
+        # Move the camera based on received commands
+        move_camera(diff_x, diff_y)
+
+        sleep(0.1)
+    except Exception as e:
+        print(f"Error: {e}")
+        break
 
 cap.release()
 stop_motors()

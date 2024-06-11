@@ -49,6 +49,8 @@ def move_camera(diff_x, diff_y):
     duty_cycle = 20  # Example duty cycle
     move_duration = 0.1  # Duration to move motors in seconds
 
+    print(f"Moving camera with diff_x: {diff_x}, diff_y: {diff_y}")
+
     # Move in X direction
     if diff_x > threshold:
         GPIO.output(motor_x_pin1, GPIO.LOW)
@@ -114,12 +116,9 @@ try:
         # Resize the frame to reduce quality
         frame = cv2.resize(frame, (320, 240))
 
-        # Convert the frame to grayscale
-        gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-
         # Compress the frame using JPEG
         encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 90]  # 90 is the quality of the JPEG compression
-        result, frame = cv2.imencode('.jpg', gray_frame, encode_param)
+        result, frame = cv2.imencode('.jpg', frame, encode_param)
         data = pickle.dumps(frame, 0)
 
         # Serialize frame

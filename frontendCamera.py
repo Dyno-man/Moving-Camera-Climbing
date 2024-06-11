@@ -94,8 +94,8 @@ client_socket.connect((HOST, PORT))
 
 cap = cv2.VideoCapture(0)
 
-while True:
-    try:
+try:
+    while True:
         ret, frame = cap.read()
         if not ret:
             print("Failed to grab frame")
@@ -149,11 +149,10 @@ while True:
         move_camera(diff_x, diff_y)
 
         sleep(0.1)
-    except Exception as e:
-        print(f"Error: {e}")
-        break
-
-cap.release()
-stop_motors()
-GPIO.cleanup()
-client_socket.close()
+except Exception as e:
+    print(f"Error: {e}")
+finally:
+    cap.release()
+    stop_motors()
+    GPIO.cleanup()
+    client_socket.close()

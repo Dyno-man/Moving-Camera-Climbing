@@ -45,9 +45,9 @@ def stop_motors():
 
 # Function to move the camera based on received commands
 def move_camera(diff_x, diff_y):
-    threshold = 75  # Threshold to determine when to stop the motors
+    threshold = 50  # Threshold to determine when to stop the motors
     duty_cycle = 20  # Example duty cycle
-    move_duration = 0.1  # Duration to move motors in seconds
+    move_duration = 0.2  # Duration to move motors in seconds
 
     print(f"Moving camera with diff_x: {diff_x}, diff_y: {diff_y}")
 

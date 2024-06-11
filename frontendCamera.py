@@ -120,30 +120,19 @@ try:
         print(f"Sent frame of size: {len(data)}")
 
         # Receive motor commands
-        data = b""
-        while len(data) < struct.calcsize("Q"):
-            packet = client_socket.recv(4096)
-            if not packet:
-                print("No packet received")
-                break
-            data += packet
-
-        if len(data) < struct.calcsize("Q"):
-            print("Connection closed by server")
+        command_data = recv_all(client_socket, struct.calcsize("Q"))
+        if command_data is None:
+            print("Failed to receive command size")
             break
 
-        command_size = struct.unpack("Q", data[:struct.calcsize("Q")])[0]
-        data = data[struct.calcsize("Q"):]
+        command_size = struct.unpack("Q", command_data)[0]
+        command_data = recv_all(client_socket, command_size)
+        if command_data is None:
+            print("Failed to receive command data")
+            break
 
-        while len(data) < command_size:
-            packet = client_socket.recv(4096)
-            if not packet:
-                print("No packet received during command reception")
-                break
-            data += packet
-
-        command_data = data[:command_size]
         diff_x, diff_y = pickle.loads(command_data)
+        print(f"Received commands: diff_x={diff_x}, diff_y={diff_y}")
 
         # Move the camera based on received commands
         move_camera(diff_x, diff_y)
@@ -156,3 +145,13 @@ finally:
     stop_motors()
     GPIO.cleanup()
     client_socket.close()
+
+# Helper function to receive all data
+def recv_all(sock, size):
+    data = b''
+    while len(data) < size:
+        packet = sock.recv(size - len(data))
+        if not packet:
+            return None
+        data += packet
+    return data

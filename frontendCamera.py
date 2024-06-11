@@ -85,6 +85,16 @@ def move_camera(diff_x, diff_y):
         GPIO.output(motor_y_enable, GPIO.LOW)
         pwm_y.ChangeDutyCycle(0)
 
+# Helper function to receive all data
+def recv_all(sock, size):
+    data = b''
+    while len(data) < size:
+        packet = sock.recv(size - len(data))
+        if not packet:
+            return None
+        data += packet
+    return data
+
 # Set up socket for communication
 HOST = '10.120.60.30'  # IP address of the powerful computer
 PORT = 5000  # Port to connect to the computer
@@ -145,13 +155,3 @@ finally:
     stop_motors()
     GPIO.cleanup()
     client_socket.close()
-
-# Helper function to receive all data
-def recv_all(sock, size):
-    data = b''
-    while len(data) < size:
-        packet = sock.recv(size - len(data))
-        if not packet:
-            return None
-        data += packet
-    return data

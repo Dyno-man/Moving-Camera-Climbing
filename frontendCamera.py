@@ -119,14 +119,14 @@ def move_camera(diff_x, diff_y):
         GPIO.output(motor_x_enable, GPIO.LOW)
         pwm_x.ChangeDutyCycle(0)
 
-    # Move in Y direction
+    # Move in Y direction with reversed logic
     if abs(pid_y.output) > threshold:
-        if pid_y.output < 0:  # If diff_y is negative, move up
-            GPIO.output(motor_y_pin1, GPIO.LOW)
-            GPIO.output(motor_y_pin2, GPIO.HIGH)
-        else:  # If diff_y is positive, move down
+        if pid_y.output < 0:  # If diff_y is negative, move down
             GPIO.output(motor_y_pin1, GPIO.HIGH)
             GPIO.output(motor_y_pin2, GPIO.LOW)
+        else:  # If diff_y is positive, move up
+            GPIO.output(motor_y_pin1, GPIO.LOW)
+            GPIO.output(motor_y_pin2, GPIO.HIGH)
         pwm_y.ChangeDutyCycle(duty_cycle)
         GPIO.output(motor_y_enable, GPIO.HIGH)
         sleep(move_duration)

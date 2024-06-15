@@ -3,7 +3,7 @@ import socket
 import struct
 import pickle
 import RPi.GPIO as GPIO
-from time import sleep
+from time import sleep, time
 
 # GPIO setup
 GPIO.setmode(GPIO.BOARD)
@@ -43,26 +43,76 @@ def stop_motors():
     GPIO.output(motor_y_enable, GPIO.LOW)
     pwm_y.ChangeDutyCycle(0)
 
+# PID controller class
+class PID:
+    def __init__(self, P=1.0, I=0.0, D=0.0):
+        self.Kp = P
+        self.Ki = I
+        self.Kd = D
+        self.sample_time = 0.00
+        self.current_time = time()
+        self.last_time = self.current_time
+        self.clear()
+
+    def clear(self):
+        self.SetPoint = 0.0
+        self.PTerm = 0.0
+        self.ITerm = 0.0
+        self.DTerm = 0.0
+        self.last_error = 0.0
+
+        self.int_error = 0.0
+        self.windup_guard = 20.0
+        self.output = 0.0
+
+    def update(self, feedback_value):
+        error = self.SetPoint - feedback_value
+
+        self.current_time = time()
+        delta_time = self.current_time - self.last_time
+        delta_error = error - self.last_error
+
+        if delta_time >= self.sample_time:
+            self.PTerm = self.Kp * error
+            self.ITerm += error * delta_time
+
+            if self.ITerm < -self.windup_guard:
+                self.ITerm = -self.windup_guard
+            elif self.ITerm > self.windup_guard:
+                self.ITerm = self.windup_guard
+
+            self.DTerm = 0.0
+            if delta_time > 0:
+                self.DTerm = delta_error / delta_time
+
+            self.last_time = self.current_time
+            self.last_error = error
+
+            self.output = self.PTerm + (self.Ki * self.ITerm) + (self.Kd * self.DTerm)
+
+pid_x = PID(P=1.0, I=0.1, D=0.05)
+pid_y = PID(P=1.0, I=0.1, D=0.05)
+
 # Function to move the camera based on received commands
 def move_camera(diff_x, diff_y):
-    threshold = 30  # Threshold to determine when to stop the motors
+    threshold = 150  # Threshold to determine when to stop the motors
     duty_cycle = 20  # Example duty cycle
-    move_duration = 0.2  # Duration to move motors in seconds
+    move_duration = 0.1  # Duration to move motors in seconds
 
-    print(f"Moving camera with diff_x: {diff_x}, diff_y: {diff_y}")
+    # Update PID controllers
+    pid_x.update(diff_x)
+    pid_y.update(diff_y)
+
+    print(f"Moving camera with pid_x: {pid_x.output}, pid_y: {pid_y.output}")
 
     # Move in X direction
-    if diff_x > threshold:
-        GPIO.output(motor_x_pin1, GPIO.LOW)
-        GPIO.output(motor_x_pin2, GPIO.HIGH)
-        pwm_x.ChangeDutyCycle(duty_cycle)
-        GPIO.output(motor_x_enable, GPIO.HIGH)
-        sleep(move_duration)
-        GPIO.output(motor_x_enable, GPIO.LOW)
-        pwm_x.ChangeDutyCycle(0)
-    elif diff_x < -threshold:
-        GPIO.output(motor_x_pin1, GPIO.HIGH)
-        GPIO.output(motor_x_pin2, GPIO.LOW)
+    if abs(pid_x.output) > threshold:
+        if pid_x.output > 0:
+            GPIO.output(motor_x_pin1, GPIO.LOW)
+            GPIO.output(motor_x_pin2, GPIO.HIGH)
+        else:
+            GPIO.output(motor_x_pin1, GPIO.HIGH)
+            GPIO.output(motor_x_pin2, GPIO.LOW)
         pwm_x.ChangeDutyCycle(duty_cycle)
         GPIO.output(motor_x_enable, GPIO.HIGH)
         sleep(move_duration)
@@ -70,17 +120,13 @@ def move_camera(diff_x, diff_y):
         pwm_x.ChangeDutyCycle(0)
 
     # Move in Y direction
-    if diff_y > threshold:
-        GPIO.output(motor_y_pin1, GPIO.LOW)
-        GPIO.output(motor_y_pin2, GPIO.HIGH)
-        pwm_y.ChangeDutyCycle(duty_cycle)
-        GPIO.output(motor_y_enable, GPIO.HIGH)
-        sleep(move_duration)
-        GPIO.output(motor_y_enable, GPIO.LOW)
-        pwm_y.ChangeDutyCycle(0)
-    elif diff_y < -threshold:
-        GPIO.output(motor_y_pin1, GPIO.HIGH)
-        GPIO.output(motor_y_pin2, GPIO.LOW)
+    if abs(pid_y.output) > threshold:
+        if pid_y.output > 0:
+            GPIO.output(motor_y_pin1, GPIO.LOW)
+            GPIO.output(motor_y_pin2, GPIO.HIGH)
+        else:
+            GPIO.output(motor_y_pin1, GPIO.HIGH)
+            GPIO.output(motor_y_pin2, GPIO.LOW)
         pwm_y.ChangeDutyCycle(duty_cycle)
         GPIO.output(motor_y_enable, GPIO.HIGH)
         sleep(move_duration)
